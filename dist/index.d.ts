@@ -7,6 +7,8 @@ import Lavalink, { Filter } from "@lavaclient/types";
 import { TypedEmitter } from "tiny-typed-emitter";
 import type * as Lavalink from "@lavaclient/types";
 
+
+
 export class Player<N extends Node = Node> extends TypedEmitter<PlayerEvents> {
     readonly node: N;
     static USE_FILTERS: boolean;

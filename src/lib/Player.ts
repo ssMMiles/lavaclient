@@ -105,6 +105,7 @@ export class Player<N extends Node = Node> extends TypedEmitter<PlayerEvents> {
 
     /* lavalink operations. */
     async play(track: string | { track: string }, options: PlayOptions = {}): Promise<this> {
+
         await this.node.conn.send(false, {
             op: "play",
             track: typeof track === "string" ? track : track.track,
@@ -112,12 +113,39 @@ export class Player<N extends Node = Node> extends TypedEmitter<PlayerEvents> {
             ...options
         });
 
-        return this;
+        return new Promise((resolve, reject) => {
+            const timeout = setTimeout(() => {
+                this.node.debug(
+                    "voice",
+                    "timeout waiting for track start",
+                );
+                reject(new Error("Timed out waiting for track to start."));
+            }, 15000);
+
+            this.once("trackStart", _ => {
+                clearTimeout(timeout);
+                resolve(this);
+            });
+        });
     }
 
     async stop(): Promise<this> {
         await this.node.conn.send(false, { op: "stop", guildId: this.guildId });
-        return this;
+        
+        return new Promise((resolve, reject) => {
+            const timeout = setTimeout(() => {
+                this.node.debug(
+                    "voice",
+                    "timeout waiting for track end",
+                );
+                reject(new Error("Timed out waiting for track to stop."));
+            }, 15000);
+
+            this.once("trackEnd", _ => {
+                clearTimeout(timeout);
+                resolve(this);
+            });
+        });
     }
 
     async pause(state = true): Promise<this> {

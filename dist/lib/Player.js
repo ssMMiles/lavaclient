@@ -78,11 +78,29 @@ class Player extends tiny_typed_emitter_1.TypedEmitter {
             guildId: this.guildId,
             ...options
         });
-        return this;
+        return new Promise((resolve, reject) => {
+            const timeout = setTimeout(() => {
+                this.node.debug("voice", "timeout waiting for track start");
+                reject(new Error("Timed out waiting for track to start."));
+            }, 15000);
+            this.once("trackStart", _ => {
+                clearTimeout(timeout);
+                resolve(this);
+            });
+        });
     }
     async stop() {
         await this.node.conn.send(false, { op: "stop", guildId: this.guildId });
-        return this;
+        return new Promise((resolve, reject) => {
+            const timeout = setTimeout(() => {
+                this.node.debug("voice", "timeout waiting for track end");
+                reject(new Error("Timed out waiting for track to stop."));
+            }, 15000);
+            this.once("trackEnd", _ => {
+                clearTimeout(timeout);
+                resolve(this);
+            });
+        });
     }
     async pause(state = true) {
         this.paused = state;
