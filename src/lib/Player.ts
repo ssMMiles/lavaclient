@@ -52,24 +52,52 @@ export class Player<N extends Node = Node> extends TypedEmitter<PlayerEvents> {
     }
 
     /* voice connection management. */
-    connect(channel: Snowflake | DiscordResource | null, options: ConnectOptions = {}): this {
-        this[_voiceUpdate] = {};
-        
-        this.node.debug("voice", `updating voice status in guild=${this.guildId}, channel=${this.channelId}`, this);
-        this.node.sendGatewayPayload(this.guildId, {
-            op: 4,
-            d: {
-                guild_id: this.guildId,
-                channel_id: channel && getId(channel),
-                self_deaf: options.deafened ?? false,
-                self_mute: options.muted ?? false
-            }
-        });
+    connect(channel: Snowflake | DiscordResource | null, options: ConnectOptions = {}): Promise<this> {
+        return new Promise((resolve, reject) => {
+            this[_voiceUpdate] = {};
 
-        return this;
+            this.node.debug(
+                "voice",
+                `updating voice status in guild=${this.guildId}, channel=${this.channelId}`,
+                this
+            );
+            this.node.sendGatewayPayload(this.guildId, {
+                op: 4,
+                d: {
+                    guild_id: this.guildId,
+                    channel_id: channel && getId(channel),
+                    self_deaf: options.deafened ?? false,
+                    self_mute: options.muted ?? false,
+                },
+            });
+
+            const timeout = setTimeout(() => {
+                this.node.debug(
+                    "voice",
+                    "timeout waiting for voice update",
+                );
+                reject(new Error(`Timed out waiting for the player to ${channel === null ? "disconnect" : "connect"}.`));
+            }, 15000);
+
+            if (channel === null) {
+                this.once("channelLeave", () => {
+                    clearTimeout(timeout);
+                    resolve(this);
+                });
+            } else {
+                this.once("channelJoin", (joinedChannel) => {
+                    if (channel !== joinedChannel) reject();
+
+                    clearTimeout(timeout);
+                    resolve(this);
+                });
+            }
+
+            return this;
+        });
     }
 
-    disconnect(): this {
+    disconnect(): Promise<this> {
         this[_voiceUpdate] = {};
 
         return this.connect(null);
