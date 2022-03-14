@@ -216,6 +216,7 @@ class Player extends tiny_typed_emitter_1.TypedEmitter {
                 this.emit("trackStart", event.track);
                 break;
             case "TrackEndEvent":
+                this.position = 0;
                 if (event.reason !== "REPLACED") {
                     this.playing = false;
                     delete this.playingSince;
