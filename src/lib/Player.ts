@@ -1,10 +1,10 @@
 /* eslint-disable camelcase */
-import { DiscordResource, getId, Snowflake } from "./Utils";
 import Lavalink, { Filter } from "@lavaclient/types";
 import { TypedEmitter } from "tiny-typed-emitter";
-
 import type { Node } from "./node/Node";
 import { decode } from "./track/Track";
+import { DiscordResource, getId, Snowflake } from "./Utils";
+
 
 /** @internal */
 const _voiceUpdate = Symbol.for("Player#_voiceUpdate");
@@ -84,12 +84,31 @@ export class Player<N extends Node = Node> extends TypedEmitter<PlayerEvents> {
             ...options
         });
 
-        return this;
+        return new Promise((resolve, reject) => {
+            const timeout = setTimeout(() => {
+                this.node.debug("voice", "timeout waiting for track start");
+                reject(new Error("Timed out waiting for track to start."));
+            }, 15000);
+            this.once("trackStart", _ => {
+                clearTimeout(timeout);
+                resolve(this);
+            });
+        });
     }
 
     async stop(): Promise<this> {
         await this.node.conn.send(false, { op: "stop", guildId: this.guildId });
-        return this;
+        
+        return new Promise((resolve, reject) => {
+            const timeout = setTimeout(() => {
+                this.node.debug("voice", "timeout waiting for track end");
+                reject(new Error("Timed out waiting for track to stop."));
+            }, 15000);
+            this.once("trackEnd", _ => {
+                clearTimeout(timeout);
+                resolve(this);
+            });
+        });
     }
 
     async pause(state = true): Promise<this> {
